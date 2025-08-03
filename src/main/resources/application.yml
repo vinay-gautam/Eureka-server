@@ -1,0 +1,17 @@
+server:
+  port: 8761
+  ssl:
+    enabled: false
+    key-store: classpath:eurekaserver.p12
+    key-store-password: vinay1
+    key-store-type: PKCS12
+    trust-store: classpath:truststore.p12
+    trust-store-password: vinay1
+    protocol: TLS
+    enabled-protocols:
+      - TLSv1.2
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+ 
