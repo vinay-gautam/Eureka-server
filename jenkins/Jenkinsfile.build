@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_IMAGE = 'vinaythepreast1/Eureka-server'
+    DOCKER_IMAGE = 'vinaythepreast1/eureka-server'
     DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
   }
 
