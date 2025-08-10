@@ -44,7 +44,7 @@ pipeline {
                                 cp $MINIKUBE_CA /minikube/ca.crt
                                 cp $MINIKUBE_CERT /minikube/client.crt
                                 cp $MINIKUBE_KEY /minikube/client.key
-                                sed -i 's|server: .*|server: https://minikube:8443|g' /minikube/kubeconfig
+                                sed -i 's|server: .*|server: https://192.168.49.2:8443|g' /minikube/kubeconfig
                                 sed -i 's|C:\\\\Users\\\\.*\\\\minikube|/minikube|g' /minikube/kubeconfig
                                 export KUBECONFIG=/minikube/kubeconfig
                                 
