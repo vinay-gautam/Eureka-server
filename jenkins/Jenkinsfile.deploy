@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        KUBECONFIG = credentials('kubeconfig-credentials-id')
         K8S_NAMESPACE = 'default'
     }
 
@@ -14,19 +13,20 @@ pipeline {
 
                     echo "🚀 Deploying application to Kubernetes..."
 
-                    // Run kubectl inside container disabling entrypoint
-                    kubectlImage.inside('--entrypoint="" -u root:root') {
-                        sh 'kubectl version --client'
+                    withCredentials([file(credentialsId: 'kubeconfig-credentials-id', variable: 'KUBECONFIG')]) {
+                        kubectlImage.inside('--entrypoint="" -u root:root') {
+                            sh 'kubectl version --client'
 
-                        sh '''
-                            set +e
-                            kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
-                            kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
-                            kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
-                            set -e
-                        '''
+                            sh '''
+                                set +e
+                                kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
+                                kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
+                                kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
+                                set -e
+                            '''
 
-                        sh 'kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s'
+                            sh 'kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s'
+                        }
                     }
                 }
             }
