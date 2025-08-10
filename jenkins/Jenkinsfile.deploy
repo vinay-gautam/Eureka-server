@@ -1,36 +1,33 @@
 pipeline {
-    agent {
-        docker {
-            image 'bitnami/kubectl:latest'  // ✅ Updated to a working kubectl image
-            args '-u root:root'  // ✅ Ensures proper permissions (optional)
-        }
-    }
+    agent any
 
     environment {
-        KUBECONFIG = credentials('kubeconfig-credentials-id')  // ✅ Uses Jenkins credentials
-        K8S_NAMESPACE = 'default'  // ✅ Customize if needed
+        KUBECONFIG = credentials('kubeconfig-credentials-id')
+        K8S_NAMESPACE = 'default'
     }
 
     stages {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
+                    def kubectlImage = docker.image('bitnami/kubectl:latest')
+
                     echo "🚀 Deploying application to Kubernetes..."
 
-                    // ✅ Check kubectl version (for debugging)
-                    sh 'kubectl version --client'
+                    // Run kubectl inside container disabling entrypoint
+                    kubectlImage.inside('--entrypoint="" -u root:root') {
+                        sh 'kubectl version --client'
 
-                    // ✅ Apply Kubernetes manifests (with error handling)
-                    sh '''
-                        set +e  # Allow failures (to handle missing ingress.yml)
-                        kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
-                        kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
-                        kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
-                        set -e  # Re-enable strict error checking
-                    '''
+                        sh '''
+                            set +e
+                            kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
+                            kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
+                            kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
+                            set -e
+                        '''
 
-                    // ✅ Wait for rollout to complete (with timeout)
-                    sh 'kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s'
+                        sh 'kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s'
+                    }
                 }
             }
         }
@@ -39,7 +36,6 @@ pipeline {
     post {
         failure {
             echo "❌ Deployment failed! Check logs."
-            // ✅ Optional: Send Slack/email notification
         }
         success {
             echo "✅ Deployment succeeded!"
