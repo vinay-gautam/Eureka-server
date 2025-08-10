@@ -9,7 +9,6 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Use alpine/k8s image instead (more reliable than bitnami)
                     def kubectlImage = docker.image('alpine/k8s:1.26.10') 
                     
                     echo "🚀 Deploying application to Kubernetes..."
@@ -20,14 +19,15 @@ pipeline {
                         file(credentialsId: 'minikube-cert', variable: 'MINIKUBE_CERT'),
                         file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
                     ]) {
-                        kubectlImage.inside('--entrypoint="" -u root:root -v /var/run/docker.sock:/var/run/docker.sock') {
-                            // Set up proper kubeconfig with corrected paths
+                        kubectlImage.inside('--entrypoint="" -u root:root -v /var/run/docker.sock:/var/run/docker.sock --add-host=minikube:$(minikube ip)') {
+                            // Fix the kubeconfig server address
                             sh '''
                                 mkdir -p /minikube
                                 cp $KUBECONFIG_FILE /minikube/kubeconfig
                                 cp $MINIKUBE_CA /minikube/ca.crt
                                 cp $MINIKUBE_CERT /minikube/client.crt
                                 cp $MINIKUBE_KEY /minikube/client.key
+                                sed -i 's|server: .*|server: https://minikube:8443|g' /minikube/kubeconfig
                                 sed -i 's|C:\\\\Users\\\\.*\\\\minikube|/minikube|g' /minikube/kubeconfig
                                 export KUBECONFIG=/minikube/kubeconfig
                             '''
