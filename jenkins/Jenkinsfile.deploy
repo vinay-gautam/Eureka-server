@@ -1,0 +1,30 @@
+pipeline {
+    agent any
+
+    environment {
+        KUBECONFIG = credentials('kubeconfig-credentials-id') // Jenkins kubeconfig credentials ID
+        K8S_NAMESPACE = 'default' // Change to your namespace if needed
+    }
+
+    stages {
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    echo "Deploying application to Kubernetes..."
+
+                    // Apply Deployment
+                    sh 'kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE'
+
+                    // Apply Service
+                    sh 'kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE'
+
+                    // Apply Ingress (optional)
+                    sh 'kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "No ingress.yml found"'
+
+                    // Check rollout status
+                    sh 'kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE'
+                }
+            }
+        }
+    }
+}
