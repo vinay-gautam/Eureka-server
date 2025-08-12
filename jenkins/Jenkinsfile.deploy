@@ -4,10 +4,21 @@ pipeline {
     environment {
         K8S_NAMESPACE = "default"
         MINIKUBE_IP = "192.168.49.2"  // Replace with your actual Minikube IP
-        MINIKUBE_PATH = "/tmp/minikube"  // Moved to environment for better visibility
+        MINIKUBE_PATH = "/tmp/minikube-deploy"  // Changed to new directory
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                sh '''
+                    # Clean previous runs
+                    rm -rf "${MINIKUBE_PATH}" || true
+                    mkdir -p "${MINIKUBE_PATH}"
+                    chmod 755 "${MINIKUBE_PATH}"
+                '''
+            }
+        }
+
         stage('Deploy to Minikube') {
             steps {
                 withCredentials([
@@ -17,33 +28,24 @@ pipeline {
                     file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
                 ]) {
                     script {
-                        // Debug: Print environment variables
-                        echo "MINIKUBE_PATH = ${env.MINIKUBE_PATH}"
-                        echo "KUBECONFIG_FILE = ${KUBECONFIG_FILE}"
-                        
                         sh '''
-                            # Debug: Print environment variables in shell
-                            echo "MINIKUBE_PATH in shell = ${MINIKUBE_PATH}"
-                            
-                            # Create directory and copy certificates
-                            mkdir -p "${MINIKUBE_PATH}"
-                            ls -la "${MINIKUBE_PATH}"
-                            
+                            # Copy credentials to working directory
                             cp "${KUBECONFIG_FILE}" "${MINIKUBE_PATH}/kubeconfig"
                             cp "${MINIKUBE_CA}" "${MINIKUBE_PATH}/ca.crt"
                             cp "${MINIKUBE_CERT}" "${MINIKUBE_PATH}/client.crt"
                             cp "${MINIKUBE_KEY}" "${MINIKUBE_PATH}/client.key"
+                            chmod 644 "${MINIKUBE_PATH}"/*
 
-                            # Update kubeconfig with correct paths and Minikube IP
+                            # Update kubeconfig
                             sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" "${MINIKUBE_PATH}/kubeconfig"
                             sed -i "s|/minikube/|${MINIKUBE_PATH}/|g" "${MINIKUBE_PATH}/kubeconfig"
 
-                            # Verify connectivity
+                            # Verify connection
                             export KUBECONFIG="${MINIKUBE_PATH}/kubeconfig"
                             kubectl version --client
                             kubectl cluster-info
 
-                            # Apply Kubernetes manifests
+                            # Deploy application
                             kubectl apply -f k8s/deployment.yml -n ${K8S_NAMESPACE}
                             kubectl apply -f k8s/service.yml -n ${K8S_NAMESPACE}
                             kubectl apply -f k8s/ingress.yml -n ${K8S_NAMESPACE} || echo "ℹ️ No ingress.yml found"
