@@ -7,6 +7,6 @@ spec:
     app: eureka-server
   ports:
     - protocol: TCP
-      port: 80       # Port exposed by the service
-      targetPort: 8080  # Port your app container listens on
+      port: 8761       # Port exposed by the service
+      targetPort: 8761  # Port your app container listens on
   type: NodePort
