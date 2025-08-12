@@ -18,7 +18,7 @@ pipeline {
                     file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
                 ]) {
                     script {
-                        def MINIKUBE_PATH = "${env.WORKSPACE}/minikube"
+                        def MINIKUBE_PATH = "/tmp/minikube"
 
                         sh """
                             mkdir -p "${MINIKUBE_PATH}"
