@@ -5,7 +5,7 @@ pipeline {
         K8S_NAMESPACE = "default"
         // Use one of these methods to get Minikube IP:
         // MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()  // If minikube is on Jenkins host
-        MINIKUBE_IP = "host.docker.internal"  // For Docker Desktop (Mac/Windows)
+        MINIKUBE_IP = "192.168.49.2"  // For Docker Desktop (Mac/Windows)
         // MINIKUBE_IP = "192.168.49.2"  // Only if you're sure this is correct
         MINIKUBE_PATH = "${WORKSPACE}/minikube-config"  // Using workspace instead of /tmp
     }
