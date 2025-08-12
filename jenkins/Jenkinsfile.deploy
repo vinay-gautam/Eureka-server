@@ -12,7 +12,7 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'minikube-kubeconfig', variable: 'KUBECONFIG_FILE'),
+                    file(credentialsId: 'kubeconfig-credentials-id', variable: 'KUBECONFIG_FILE'),
                     file(credentialsId: 'minikube-ca', variable: 'MINIKUBE_CA'),
                     file(credentialsId: 'minikube-cert', variable: 'MINIKUBE_CERT'),
                     file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
