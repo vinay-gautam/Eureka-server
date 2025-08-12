@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Kubernetes namespace
         K8S_NAMESPACE = "default"
-        // Minikube IP (you can get it via `minikube ip` and hardcode or pass as parameter)
-        MINIKUBE_IP = "192.168.49.2"
+        MINIKUBE_IP = "192.168.49.2"  // Replace with your actual Minikube IP (from `minikube ip`)
     }
 
     stages {
@@ -20,25 +18,29 @@ pipeline {
                     script {
                         def MINIKUBE_PATH = "/tmp/minikube"
 
-                        sh """
+                        sh '''
+                            # Create directory and copy certificates
                             mkdir -p "${MINIKUBE_PATH}"
                             cp "$KUBECONFIG_FILE" "${MINIKUBE_PATH}/kubeconfig"
                             cp "$MINIKUBE_CA" "${MINIKUBE_PATH}/ca.crt"
                             cp "$MINIKUBE_CERT" "${MINIKUBE_PATH}/client.crt"
                             cp "$MINIKUBE_KEY" "${MINIKUBE_PATH}/client.key"
 
+                            # Update kubeconfig with correct paths and Minikube IP
                             sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" "${MINIKUBE_PATH}/kubeconfig"
-                            sed -i -E 's|C:\\\\Users\\\\[^\\\\]+\\\\.minikube|${MINIKUBE_PATH}|g' "${MINIKUBE_PATH}/kubeconfig"
+                            sed -i "s|/minikube/|${MINIKUBE_PATH}/|g" "${MINIKUBE_PATH}/kubeconfig"
 
+                            # Verify connectivity
                             export KUBECONFIG="${MINIKUBE_PATH}/kubeconfig"
-
                             kubectl version --client
                             kubectl cluster-info
-                            kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
-                            kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
-                            kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
-                            kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s
-                        """
+
+                            # Apply Kubernetes manifests
+                            kubectl apply -f k8s/deployment.yml -n ${K8S_NAMESPACE}
+                            kubectl apply -f k8s/service.yml -n ${K8S_NAMESPACE}
+                            kubectl apply -f k8s/ingress.yml -n ${K8S_NAMESPACE} || echo "ℹ️ No ingress.yml found"
+                            kubectl rollout status deployment/eureka-server -n ${K8S_NAMESPACE} --timeout=120s
+                        '''
                     }
                 }
             }
