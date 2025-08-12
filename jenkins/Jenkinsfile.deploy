@@ -2,89 +2,46 @@ pipeline {
     agent any
 
     environment {
-        K8S_NAMESPACE = 'default'
-        MINIKUBE_IP = '192.168.49.2' // fallback
+        // Kubernetes namespace
+        K8S_NAMESPACE = "default"
+        // Minikube IP (you can get it via `minikube ip` and hardcode or pass as parameter)
+        MINIKUBE_IP = "192.168.49.2"
     }
 
     stages {
-        stage('Get Minikube IP') {
+        stage('Deploy to Minikube') {
             steps {
-                script {
-                    try {
-                        env.MINIKUBE_IP = sh(
-                            script: 'minikube ip',
-                            returnStdout: true
-                        ).trim()
-                        echo "✅ Found Minikube IP: ${env.MINIKUBE_IP}"
-                    } catch (Exception e) {
-                        echo "⚠️ Using fallback Minikube IP: ${env.MINIKUBE_IP}"
+                withCredentials([
+                    file(credentialsId: 'minikube-kubeconfig', variable: 'KUBECONFIG_FILE'),
+                    file(credentialsId: 'minikube-ca', variable: 'MINIKUBE_CA'),
+                    file(credentialsId: 'minikube-cert', variable: 'MINIKUBE_CERT'),
+                    file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
+                ]) {
+                    script {
+                        def MINIKUBE_PATH = "${env.WORKSPACE}/minikube"
+
+                        sh """
+                            mkdir -p "${MINIKUBE_PATH}"
+                            cp "$KUBECONFIG_FILE" "${MINIKUBE_PATH}/kubeconfig"
+                            cp "$MINIKUBE_CA" "${MINIKUBE_PATH}/ca.crt"
+                            cp "$MINIKUBE_CERT" "${MINIKUBE_PATH}/client.crt"
+                            cp "$MINIKUBE_KEY" "${MINIKUBE_PATH}/client.key"
+
+                            sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" "${MINIKUBE_PATH}/kubeconfig"
+                            sed -i -E 's|C:\\\\Users\\\\[^\\\\]+\\\\.minikube|${MINIKUBE_PATH}|g' "${MINIKUBE_PATH}/kubeconfig"
+
+                            export KUBECONFIG="${MINIKUBE_PATH}/kubeconfig"
+
+                            kubectl version --client
+                            kubectl cluster-info
+                            kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
+                            kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
+                            kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
+                            kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s
+                        """
                     }
                 }
             }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    def kubectlImage = docker.image('alpine/k8s:1.26.10')
-
-                    withCredentials([
-                        file(credentialsId: 'kubeconfig-credentials-id', variable: 'KUBECONFIG_FILE'),
-                        file(credentialsId: 'minikube-ca', variable: 'MINIKUBE_CA'),
-                        file(credentialsId: 'minikube-cert', variable: 'MINIKUBE_CERT'),
-                        file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
-                    ]) {
-                        kubectlImage.inside("--entrypoint='' --add-host=minikube:${env.MINIKUBE_IP}") {
-                            sh '''#!/bin/sh
-                                set -e
-                                mkdir -p /minikube
-                                cp "$KUBECONFIG_FILE" /minikube/kubeconfig
-                                cp "$MINIKUBE_CA" /minikube/ca.crt
-                                cp "$MINIKUBE_CERT" /minikube/client.crt
-                                cp "$MINIKUBE_KEY" /minikube/client.key
-
-                                # Update server IP in kubeconfig
-                                sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" /minikube/kubeconfig
-
-                                # Replace Windows paths with container paths
-                                sed -i -E 's|C:\\Users\\[^\\]+\\.minikube|/minikube|g' /minikube/kubeconfig
-
-                                export KUBECONFIG=/minikube/kubeconfig
-
-                                echo '=== kubeconfig in container ==='
-                                cat /minikube/kubeconfig
-
-                                kubectl version --client
-                                kubectl cluster-info
-
-                                set +e
-                                kubectl apply -f k8s/deployment.yml -n $K8S_NAMESPACE
-                                kubectl apply -f k8s/service.yml -n $K8S_NAMESPACE
-                                kubectl apply -f k8s/ingress.yml -n $K8S_NAMESPACE || echo "ℹ️ No ingress.yml found"
-                                set -e
-
-                                kubectl rollout status deployment/eureka-server -n $K8S_NAMESPACE --timeout=120s
-                            '''
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        failure {
-            script {
-                echo "❌ Deployment failed! Debug info:"
-                sh '''#!/bin/sh
-                    export KUBECONFIG=/minikube/kubeconfig || true
-                    kubectl config view || true
-                    kubectl get nodes || true
-                '''
-            }
-        }
-        success {
-            echo "✅ Deployment succeeded!"
         }
     }
 }
