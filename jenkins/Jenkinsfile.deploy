@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         K8S_NAMESPACE = "default"
-        MINIKUBE_IP = "192.168.49.2"  // Replace with your actual Minikube IP (from `minikube ip`)
+        MINIKUBE_IP = "192.168.49.2"  // Replace with your actual Minikube IP
+        MINIKUBE_PATH = "/tmp/minikube"  // Moved to environment for better visibility
     }
 
     stages {
@@ -16,15 +17,22 @@ pipeline {
                     file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
                 ]) {
                     script {
-                        def MINIKUBE_PATH = "/tmp/minikube"
-
+                        // Debug: Print environment variables
+                        echo "MINIKUBE_PATH = ${env.MINIKUBE_PATH}"
+                        echo "KUBECONFIG_FILE = ${KUBECONFIG_FILE}"
+                        
                         sh '''
+                            # Debug: Print environment variables in shell
+                            echo "MINIKUBE_PATH in shell = ${MINIKUBE_PATH}"
+                            
                             # Create directory and copy certificates
                             mkdir -p "${MINIKUBE_PATH}"
-                            cp "$KUBECONFIG_FILE" "${MINIKUBE_PATH}/kubeconfig"
-                            cp "$MINIKUBE_CA" "${MINIKUBE_PATH}/ca.crt"
-                            cp "$MINIKUBE_CERT" "${MINIKUBE_PATH}/client.crt"
-                            cp "$MINIKUBE_KEY" "${MINIKUBE_PATH}/client.key"
+                            ls -la "${MINIKUBE_PATH}"
+                            
+                            cp "${KUBECONFIG_FILE}" "${MINIKUBE_PATH}/kubeconfig"
+                            cp "${MINIKUBE_CA}" "${MINIKUBE_PATH}/ca.crt"
+                            cp "${MINIKUBE_CERT}" "${MINIKUBE_PATH}/client.crt"
+                            cp "${MINIKUBE_KEY}" "${MINIKUBE_PATH}/client.key"
 
                             # Update kubeconfig with correct paths and Minikube IP
                             sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" "${MINIKUBE_PATH}/kubeconfig"
