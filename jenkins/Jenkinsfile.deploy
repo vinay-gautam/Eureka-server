@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         K8S_NAMESPACE = 'default'
-        // Default fallback IP if minikube command fails
-        MINIKUBE_IP = '192.168.49.2' 
+        MINIKUBE_IP = '192.168.49.2' // fallback
     }
 
     stages {
@@ -12,12 +11,14 @@ pipeline {
             steps {
                 script {
                     try {
+                        // If 'minikube' CLI is available in Jenkins host
                         env.MINIKUBE_IP = sh(
-                            script: 'docker network inspect minikube --format "{{range .IPAM.Config}}{{.Gateway}}{{end}}"',
+                            script: 'minikube ip',
                             returnStdout: true
                         ).trim()
-                    } catch(Exception e) {
-                        echo "⚠️ Using default Minikube IP: ${env.MINIKUBE_IP}"
+                        echo "✅ Found Minikube IP: ${env.MINIKUBE_IP}"
+                    } catch (Exception e) {
+                        echo "⚠️ Using fallback Minikube IP: ${env.MINIKUBE_IP}"
                     }
                 }
             }
@@ -27,8 +28,6 @@ pipeline {
             steps {
                 script {
                     def kubectlImage = docker.image('alpine/k8s:1.26.10')
-                    
-                    echo "🚀 Deploying application to Kubernetes (Minikube IP: ${env.MINIKUBE_IP})..."
 
                     withCredentials([
                         file(credentialsId: 'kubeconfig-credentials-id', variable: 'KUBECONFIG_FILE'),
@@ -36,22 +35,24 @@ pipeline {
                         file(credentialsId: 'minikube-cert', variable: 'MINIKUBE_CERT'),
                         file(credentialsId: 'minikube-key', variable: 'MINIKUBE_KEY')
                     ]) {
-                        // Use triple-double-quotes for Groovy string interpolation
-                        kubectlImage.inside("--entrypoint=\"\" -u root:root -v /var/run/docker.sock:/var/run/docker.sock --add-host=minikube:${env.MINIKUBE_IP}") {
+                        kubectlImage.inside("--entrypoint='' --add-host=minikube:${env.MINIKUBE_IP}") {
                             sh """
+                                set -e
                                 mkdir -p /minikube
-                                cp \$KUBECONFIG_FILE /minikube/kubeconfig
-                                cp \$MINIKUBE_CA /minikube/ca.crt
-                                cp \$MINIKUBE_CERT /minikube/client.crt
-                                cp \$MINIKUBE_KEY /minikube/client.key
+                                cp "\$KUBECONFIG_FILE" /minikube/kubeconfig
+                                cp "\$MINIKUBE_CA" /minikube/ca.crt
+                                cp "\$MINIKUBE_CERT" /minikube/client.crt
+                                cp "\$MINIKUBE_KEY" /minikube/client.key
 
-                                # Use dynamic MINIKUBE_IP here (from Jenkins env)
-                                sed -i 's|server: .*|server: https://${MINIKUBE_IP}:8443|g' /minikube/kubeconfig
-                                sed -i 's|C:\\\\Users\\\\.*\\\\minikube|/minikube|g' /minikube/kubeconfig
+                                # Update server IP in kubeconfig
+                                sed -i "s|server: .*|server: https://${MINIKUBE_IP}:8443|g" /minikube/kubeconfig
+
+                                # Replace Windows paths with container paths
+                                sed -i -E 's|C:\\\\Users\\\\[^\\\\]+\\\\\.minikube|/minikube|g' /minikube/kubeconfig
 
                                 export KUBECONFIG=/minikube/kubeconfig
 
-                                echo "=== kubeconfig ==="
+                                echo '=== kubeconfig in container ==='
                                 cat /minikube/kubeconfig
 
                                 kubectl version --client
@@ -74,12 +75,14 @@ pipeline {
 
     post {
         failure {
-            echo "❌ Deployment failed! Check logs."
-            sh '''
-                echo "=== Debug Info ==="
-                kubectl config view || true
-                kubectl get nodes || true
-            '''
+            script {
+                echo "❌ Deployment failed! Debug info:"
+                sh """
+                    export KUBECONFIG=/minikube/kubeconfig || true
+                    kubectl config view || true
+                    kubectl get nodes || true
+                """
+            }
         }
         success {
             echo "✅ Deployment succeeded!"
