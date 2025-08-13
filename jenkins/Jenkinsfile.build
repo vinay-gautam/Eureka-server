@@ -9,6 +9,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+        deleteDir()
         git branch: 'main', url: 'https://github.com/vinay-gautam/Eureka-server.git'
       }
     }
