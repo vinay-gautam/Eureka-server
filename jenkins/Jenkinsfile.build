@@ -23,11 +23,7 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         script {
-          // Ensure Docker socket has correct permissions (temporary fix)
-          sh 'sudo chmod 666 /var/run/docker.sock || true'
-          
-          // Build with explicit path to Dockerfile if needed
-          docker.build("${DOCKER_IMAGE}:latest", "--file Dockerfile .")
+          docker.build("${DOCKER_IMAGE}:latest")
         }
       }
     }
