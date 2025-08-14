@@ -9,4 +9,4 @@ spec:
     - protocol: TCP
       port: 80      # Port exposed by the service
       targetPort: 8761  # Port your app container listens on
-  type: NodePort
+  type: ClusterIP
