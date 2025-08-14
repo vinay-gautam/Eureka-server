@@ -9,5 +9,5 @@ spec:
     - protocol: TCP
       port: 8761       # Service port
       targetPort: 8761 # Container port
-      nodePort: 8761   # NodePort (exposes this port on the host)
+      nodePort: 30661   # NodePort (exposes this port on the host)
   type: NodePort       # <-- Change from ClusterIP to NodePort
