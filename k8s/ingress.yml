@@ -1,13 +1,13 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: eureka-ingress
+  name: springboot-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-    - host: eureka.example.com   # Use real DNS in production
+    - host: myapp.local
       http:
         paths:
           - path: /
@@ -16,4 +16,4 @@ spec:
               service:
                 name: eureka-server-service
                 port:
-                  number: 8761
+                  number: 80
