@@ -14,6 +14,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: springboot-service
+                name: eureka-server-service
                 port:
                   number: 80
