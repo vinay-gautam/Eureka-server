@@ -9,5 +9,4 @@ spec:
     - protocol: TCP
       port: 8761
       targetPort: 8761
-      nodePort: 30661   # valid NodePort on Windows
-  type: NodePort
+  type: ClusterIP
