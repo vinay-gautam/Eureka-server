@@ -7,6 +7,7 @@ spec:
     app: eureka-server
   ports:
     - protocol: TCP
-      port: 80      # Port exposed by the service
-      targetPort: 8761  # Port your app container listens on
-  type: ClusterIP
+      port: 8761       # Service port
+      targetPort: 8761 # Container port
+      nodePort: 8761   # NodePort (exposes this port on the host)
+  type: NodePort       # <-- Change from ClusterIP to NodePort
