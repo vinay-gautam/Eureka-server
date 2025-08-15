@@ -6,6 +6,6 @@ spec:
   selector:
     app: eureka-server
   ports:
-    - port: 80
+    - port: 8761
       targetPort: 8761
   type: LoadBalancer
